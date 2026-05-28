@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: moaje-banking
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+    consumer:
+      group-id: moaje-banking
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8080
+
+moaje:
+  id:
+    tsid:
+      node: 0
+  banking:
+    external-api:
+      base-url: http://localhost:8081/
+      hmac-secret: Moaje-banking-secret
+    external-sync:
+      enabled: false
+      fixed-delay-ms: 60000
+      cursor: 1970-01-01T00:00:00Z
+      accounts: []
+    asset:
+      grpc-host: localhost
+      grpc-port: 9090
+    grpc:
+      server:
+        port: 9091
+    kafka:
+      topics:
+        asset-transfer-requested: moaje.asset.transfer-requested
+        account-created: account_created_events
+        banking-transfer-completed: moaje.banking.transfer-completed
+        banking-transfer-failed: moaje.banking.transfer-failed
