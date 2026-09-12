@@ -4,8 +4,11 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     producer:
+      acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      properties:
+        enable.idempotence: true
     consumer:
       group-id: moaje-banking
       auto-offset-reset: earliest
@@ -15,6 +18,14 @@ spring:
     redis:
       host: localhost
       port: 6379
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    # baseline은 구 테이블을 최신 구조로 고치는 기능이 아니다. 검토하지 않은 DB를 V1로 간주하지 않는다.
+    baseline-on-migrate: false
+    locations: classpath:db/migration/{vendor}
 
 server:
   port: 8080
@@ -27,20 +38,42 @@ moaje:
     external-api:
       base-url: http://localhost:8081/
       hmac-secret: Moaje-banking-secret
-    external-sync:
-      enabled: false
-      fixed-delay-ms: 60000
-      cursor: 1970-01-01T00:00:00Z
-      accounts: []
-    asset:
-      grpc-host: localhost
-      grpc-port: 9090
+      connect-timeout-ms: 3000
+      read-timeout-ms: 30000
     grpc:
       server:
         port: 9091
+        tls:
+          enabled: ${BANKING_GRPC_TLS_ENABLED:true}
+          certificate-chain-path: ${BANKING_GRPC_TLS_CERTIFICATE_CHAIN_PATH:}
+          private-key-path: ${BANKING_GRPC_TLS_PRIVATE_KEY_PATH:}
+          trust-certificate-collection-path: ${BANKING_GRPC_TLS_TRUST_CERTIFICATE_COLLECTION_PATH:}
     kafka:
       topics:
-        asset-transfer-requested: moaje.asset.transfer-requested
         account-created: account_created_events
         banking-transfer-completed: moaje.banking.transfer-completed
         banking-transfer-failed: moaje.banking.transfer-failed
+        banking-transfer-reversed: moaje.banking.transfer-reversed
+    outbox:
+      publisher:
+        enabled: true
+        fixed-delay-ms: 5000
+        initial-delay-ms: 5000
+        batch-size: 20
+        lease-duration-ms: 30000
+        max-attempts: 10
+        base-backoff-ms: 1000
+        max-backoff-ms: 60000
+        kafka-send-timeout-ms: 10000
+    reconciliation:
+      transfer:
+        enabled: false
+        fixed-delay-ms: 60000
+        initial-delay-ms: 30000
+        batch-size: 20
+        processing-stale-after-ms: 120000
+        processing-stale-safety-margin-ms: 30000
+        lease-duration-ms: 30000
+        max-attempts: 10
+        base-backoff-ms: 5000
+        max-backoff-ms: 300000

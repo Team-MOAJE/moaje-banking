@@ -19,20 +19,21 @@ class AccountController(
     private val accountOpeningService: AccountOpeningService,
 ) {
     /**
-     * 클라이언트의 계좌개설 요청을 받아 목업 뱅킹 계좌개설 흐름을 시작합니다.
+     * 클라이언트의 계좌개설 요청을 받아 목업 뱅킹 계좌개설을 진행합니다.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun openAccount(
         @Valid @RequestBody request: OpenAccountRequest,
+        principal: java.security.Principal,
     ): OpenAccountResult {
-        return accountOpeningService.open(request.toCommand())
+        return accountOpeningService.open(request.toCommand(principal.name))
     }
 }
 
 data class OpenAccountRequest(
-    @field:NotBlank
-    val userId: String,
+    // 구버전 요청 호환용 필드이며 계좌 소유자를 정하는 데 사용하지 않는다.
+    val userId: String? = null,
     @field:NotBlank
     val ci: String,
     @field:NotBlank
@@ -46,9 +47,9 @@ data class OpenAccountRequest(
     @field:Min(0)
     val initialBalance: Long,
 ) {
-    fun toCommand(): OpenAccountCommand {
+    fun toCommand(principalId: String): OpenAccountCommand {
         return OpenAccountCommand(
-            userId = userId,
+            userId = principalId,
             ci = ci,
             userName = userName,
             phoneNumber = phoneNumber,

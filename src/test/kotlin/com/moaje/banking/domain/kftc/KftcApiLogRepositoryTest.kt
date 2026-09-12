@@ -1,6 +1,7 @@
 package com.moaje.banking.domain.kftc
 
 import com.moaje.banking.repository.kftc.KftcApiLogRepository
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -13,6 +14,12 @@ import kotlin.test.assertTrue
 class KftcApiLogRepositoryTest(
     @Autowired private val repository: KftcApiLogRepository,
 ) {
+    @BeforeEach
+    fun setUp() {
+        repository.deleteAll()
+        repository.flush()
+    }
+
     @Test
     @DisplayName("KFTC API 로그를 거래 ID로 조회한다")
     fun findByTransferId() {

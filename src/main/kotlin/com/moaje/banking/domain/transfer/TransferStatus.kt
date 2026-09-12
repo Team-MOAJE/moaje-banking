@@ -5,4 +5,5 @@ enum class TransferStatus {
     PROCESSING,
     COMPLETED,
     FAILED,
+    REVERSED,
 }

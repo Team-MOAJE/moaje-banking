@@ -1,126 +1,111 @@
 package com.moaje.banking.infra.grpc
 
-import com.moaje.banking.application.service.ExternalBankingSyncCommand
-import com.moaje.banking.application.service.ExternalBankingSyncService
-import com.moaje.banking.common.restclient.MockBankingApiClient
-import com.moaje.banking.domain.common.Money
-import com.moaje.banking.domain.kftc.KftcApiLogStatus
-import com.moaje.banking.domain.transfer.TransferCommand
+import com.moaje.banking.application.service.AccountProjectionSnapshotQueryService
+import com.moaje.banking.application.service.TransferProjectionQueryService
+import com.moaje.banking.application.service.TransferProjectionStateResult
+import com.moaje.common.Money as ProtoMoney
 import com.moaje.grpc.banking.BankingServiceGrpc
-import com.moaje.grpc.banking.ExecuteTransferRequest
-import com.moaje.grpc.banking.ExecuteTransferResponse
-import com.moaje.grpc.banking.SyncExternalAccountTransactionsRequest
-import com.moaje.grpc.banking.SyncExternalAccountTransactionsResponse
+import com.moaje.grpc.banking.ExternalProjectionTransaction
+import com.moaje.grpc.banking.GetAccountProjectionSnapshotRequest
+import com.moaje.grpc.banking.GetAccountProjectionSnapshotResponse
+import com.moaje.grpc.banking.GetTransferProjectionStatesRequest
+import com.moaje.grpc.banking.GetTransferProjectionStatesResponse
+import com.moaje.grpc.banking.TransferProjectionState
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.springframework.stereotype.Component
-import java.math.BigDecimal
 import java.time.Instant
 
 @Component
 class BankingGrpcService(
-    private val mockBankingApiClient: MockBankingApiClient,
-    private val externalBankingSyncService: ExternalBankingSyncService,
+    private val transferProjectionQueryService: TransferProjectionQueryService,
+    private val accountProjectionSnapshotQueryService: AccountProjectionSnapshotQueryService,
 ) : BankingServiceGrpc.BankingServiceImplBase() {
     /**
-     * gRPC로 들어온 송금 실행 요청을 Mock Banking API 호출로 변환해 처리합니다.
+     * Asset 자동 대사는 평문 계좌정보를 전달하지 않고 내부 accountId와 transferId만으로 Journal을 조회한다.
+     * 이 RPC는 외부 송금을 실행하지 않는 읽기 전용 Adapter이며, Projection 복구 판단은 Asset Application 계층이 담당한다.
      */
-    override fun executeTransfer(
-        request: ExecuteTransferRequest,
-        responseObserver: StreamObserver<ExecuteTransferResponse>,
+    override fun getTransferProjectionStates(
+        request: GetTransferProjectionStatesRequest,
+        responseObserver: StreamObserver<GetTransferProjectionStatesResponse>,
     ) {
         runCatching {
-            val result = mockBankingApiClient.transferRequest(request.toCommand())
-            ExecuteTransferResponse.newBuilder()
-                .setStatus(result.status.toGrpcStatus())
-                .setExternalTransactionId(result.externalTransactionId.orEmpty())
-                .setResponseCode(result.responseCode.orEmpty())
-                .setFailureReason(result.failureReason.orEmpty())
+            val states = transferProjectionQueryService.getStates(request.accountId, request.transferIdsList)
+            GetTransferProjectionStatesResponse.newBuilder()
+                .addAllTransfers(states.map { it.toGrpcResponse() })
                 .build()
-        }.onSuccess { response ->
+        }.respond(responseObserver)
+    }
+
+    /**
+     * Asset에는 providerAccountId나 평문 계좌번호를 공개하지 않고 내부 accountId만 받는다.
+     * Banking이 계정계 식별자 매핑을 소유하므로 Adapter 교체 시에도 Asset 계약은 바뀌지 않는다.
+     */
+    override fun getAccountProjectionSnapshot(
+        request: GetAccountProjectionSnapshotRequest,
+        responseObserver: StreamObserver<GetAccountProjectionSnapshotResponse>,
+    ) {
+        runCatching {
+            val snapshot = accountProjectionSnapshotQueryService.getSnapshot(
+                request.accountId,
+                Instant.ofEpochMilli(request.cursorEpochMillis.coerceAtLeast(0)),
+            )
+            GetAccountProjectionSnapshotResponse.newBuilder()
+                .setAccountId(snapshot.accountId)
+                .setPrincipalId(snapshot.principalId)
+                .setBalance(
+                    ProtoMoney.newBuilder()
+                        .setAmount(snapshot.balance.toLong())
+                        .setCurrency(snapshot.currency)
+                        .build(),
+                )
+                .setAccountStatus(snapshot.accountStatus)
+                .setAsOfEpochMillis(snapshot.asOf.toEpochMilli())
+                .addAllTransactions(snapshot.transactions.map { transaction ->
+                    ExternalProjectionTransaction.newBuilder()
+                        .setExternalTransactionId(transaction.externalTransactionId)
+                        .setType(transaction.type)
+                        .setAmount(
+                            ProtoMoney.newBuilder()
+                                .setAmount(transaction.amount.toLong())
+                                .setCurrency(transaction.currency)
+                                .build(),
+                        )
+                        .setOccurredAtEpochMillis(transaction.occurredAt.toEpochMilli())
+                        .apply { transaction.completedAt?.let { setCompletedAtEpochMillis(it.toEpochMilli()) } }
+                        .build()
+                })
+                .build()
+        }.respond(responseObserver)
+    }
+
+    private fun <T> Result<T>.respond(responseObserver: StreamObserver<T>) {
+        onSuccess { response ->
             responseObserver.onNext(response)
             responseObserver.onCompleted()
         }.onFailure { exception ->
-            responseObserver.onError(
-                Status.INTERNAL
-                    .withDescription(exception.message)
-                    .withCause(exception)
-                    .asRuntimeException(),
+            val status = if (exception is IllegalArgumentException) Status.INVALID_ARGUMENT else Status.INTERNAL
+            responseObserver.onError(status.withDescription(exception.message).withCause(exception).asRuntimeException())
+        }
+    }
+
+    private fun TransferProjectionStateResult.toGrpcResponse(): TransferProjectionState {
+        return TransferProjectionState.newBuilder()
+            .setTransferId(transferId)
+            .setPrincipalId(principalId)
+            .setAccountId(accountId)
+            .setAmount(
+                ProtoMoney.newBuilder()
+                    .setAmount(amount.toLong())
+                    .setCurrency(currency)
+                    .build(),
             )
-        }
-    }
-
-    /**
-     * Asset 서비스의 pull-to-refresh 요청을 받아 외부 금융망 거래내역 동기화를 수행합니다.
-     */
-    override fun syncExternalAccountTransactions(
-        request: SyncExternalAccountTransactionsRequest,
-        responseObserver: StreamObserver<SyncExternalAccountTransactionsResponse>,
-    ) {
-        runCatching {
-            val result = externalBankingSyncService.syncAccount(request.toCommand())
-            SyncExternalAccountTransactionsResponse.newBuilder()
-                .setSuccess(true)
-                .setSyncedCount(result.syncedCount)
-                .setMessage("외부 금융망 거래내역 동기화가 완료되었습니다.")
-                .build()
-        }.onSuccess { response ->
-            responseObserver.onNext(response)
-            responseObserver.onCompleted()
-        }.onFailure { exception ->
-            responseObserver.onError(
-                Status.INTERNAL
-                    .withDescription(exception.message)
-                    .withCause(exception)
-                    .asRuntimeException(),
-            )
-        }
-    }
-
-    /**
-     * gRPC 송금 실행 요청 메시지를 Banking 내부 송금 커맨드로 변환합니다.
-     */
-    private fun ExecuteTransferRequest.toCommand(): TransferCommand {
-        return TransferCommand(
-            idempotencyKey = transferId.toString(),
-            ci = ci,
-            userName = userName,
-            phoneNumber = phoneNumber,
-            requesterUserId = transferId.toString(),
-            withdrawalAccountId = withdrawalAccountId,
-            depositBankCode = depositBankCode,
-            depositAccountNumber = depositAccountNumber,
-            amount = Money(BigDecimal.valueOf(amount.amount), amount.currency),
-        )
-    }
-
-    /**
-     * 외부 거래내역 동기화 gRPC 요청 메시지를 Banking 애플리케이션 커맨드로 변환합니다.
-     */
-    private fun SyncExternalAccountTransactionsRequest.toCommand(): ExternalBankingSyncCommand {
-        return ExternalBankingSyncCommand(
-            userId = userId,
-            assetAccountId = assetAccountId,
-            accountToken = accountToken,
-            externalAccountNumber = externalAccountNumber,
-            ci = ci,
-            userName = userName,
-            phoneNumber = phoneNumber,
-            cursor = cursor.takeIf { it.isNotBlank() }?.let(Instant::parse) ?: Instant.EPOCH,
-        )
-    }
-
-    /**
-     * 내부 KFTC 통신 로그 상태를 gRPC 응답 상태 코드로 변환합니다.
-     */
-    private fun KftcApiLogStatus.toGrpcStatus(): ExecuteTransferResponse.Status {
-        return when (this) {
-            KftcApiLogStatus.SUCCESS -> ExecuteTransferResponse.Status.SUCCESS
-            KftcApiLogStatus.TIMEOUT -> ExecuteTransferResponse.Status.TIMEOUT
-            KftcApiLogStatus.SENT,
-            KftcApiLogStatus.FAILED,
-            KftcApiLogStatus.REVERSED,
-            -> ExecuteTransferResponse.Status.FAILED
-        }
+            .setStatus(TransferProjectionState.Status.valueOf(status.name))
+            .setExternalTransactionId(externalTransactionId.orEmpty())
+            .setExternalReversalTransactionId(externalReversalTransactionId.orEmpty())
+            .setFailureCode(failureCode.orEmpty())
+            .setFailureReason(failureReason.orEmpty())
+            .setReversalReason(reversalReason.orEmpty())
+            .build()
     }
 }

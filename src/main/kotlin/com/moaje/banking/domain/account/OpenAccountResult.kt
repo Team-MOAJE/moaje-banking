@@ -3,8 +3,8 @@ package com.moaje.banking.domain.account
 import java.time.Instant
 
 data class OpenAccountResult(
+    val accountId: Long,
     val userId: String,
-    val accountNumber: String,
     val bankCode: String,
     val productName: String,
     val balance: Long,
