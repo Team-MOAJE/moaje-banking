@@ -18,9 +18,9 @@ class GatewayPrincipalFilterTest {
             bankCode = "TEST", productName = "test-product", initialBalance = 0,
         )
         // when
-        val command = request.toCommand("verified-subject")
+        val command = request.toCommand("123456789")
         // then
-        assertThat(command.userId).isEqualTo("verified-subject")
+        assertThat(command.userId).isEqualTo("123456789")
     }
 
     @Test
@@ -43,7 +43,7 @@ class GatewayPrincipalFilterTest {
     fun exposesVerifiedPrincipal() {
         // given
         val request = MockHttpServletRequest("GET", "/api/v1/banking/accounts").apply {
-            addHeader(GatewayPrincipalFilter.USER_HEADER, "verified-subject")
+            addHeader(GatewayPrincipalFilter.USER_HEADER, "123456789")
             addParameter("userId", "untrusted")
         }
         var identity: String? = null
@@ -52,7 +52,7 @@ class GatewayPrincipalFilterTest {
             identity = (forwarded as HttpServletRequest).userPrincipal.name
         }
         // then
-        assertThat(identity).isEqualTo("verified-subject")
+        assertThat(identity).isEqualTo("123456789")
     }
 
     @Test
@@ -60,12 +60,26 @@ class GatewayPrincipalFilterTest {
     fun rejectsDuplicateIdentityHeaders() {
         // given
         val request = MockHttpServletRequest("GET", "/api/v1/banking/accounts").apply {
-            addHeader(GatewayPrincipalFilter.USER_HEADER, "one")
-            addHeader(GatewayPrincipalFilter.USER_HEADER, "two")
+            addHeader(GatewayPrincipalFilter.USER_HEADER, "1001")
+            addHeader(GatewayPrincipalFilter.USER_HEADER, "1002")
         }
         val response = MockHttpServletResponse()
         // when
         GatewayPrincipalFilter().doFilter(request, response) { _, _ -> error("중복 신원은 허용하지 않습니다.") }
+        // then
+        assertThat(response.status).isEqualTo(401)
+    }
+
+    @Test
+    @DisplayName("Auth user_id 형식이 아닌 내부 사용자 헤더는 401로 거절한다")
+    fun rejectsNonNumericSubject() {
+        // given: Auth의 현재 user_id는 정수를 문자열로 바꾼 sub다.
+        val request = MockHttpServletRequest("GET", "/api/v1/banking/accounts").apply {
+            addHeader(GatewayPrincipalFilter.USER_HEADER, "user-123")
+        }
+        val response = MockHttpServletResponse()
+        // when
+        GatewayPrincipalFilter().doFilter(request, response) { _, _ -> error("잘못된 사용자 ID를 허용하면 안 됩니다.") }
         // then
         assertThat(response.status).isEqualTo(401)
     }

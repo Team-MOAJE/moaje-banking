@@ -73,6 +73,7 @@ class BankingGrpcService(
                         )
                         .setOccurredAtEpochMillis(transaction.occurredAt.toEpochMilli())
                         .apply { transaction.completedAt?.let { setCompletedAtEpochMillis(it.toEpochMilli()) } }
+                        .apply { transaction.merchantName?.let { setMerchantName(it) } }
                         .build()
                 })
                 .build()

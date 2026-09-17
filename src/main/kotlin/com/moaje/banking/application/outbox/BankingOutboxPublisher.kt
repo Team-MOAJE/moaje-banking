@@ -128,8 +128,8 @@ class BankingOutboxPublisher(
     }
 
     /**
-     * Protobuf 본문이 손상되면 Consumer는 transferId조차 꺼낼 수 있으므로 복구용 식별자를 Kafka Header에도 둔다.
-     * Header에는 개인정보를 넣지 않고 eventId와 aggregateId, accountId 역할의 messageKey만 넣어 DLT 추적과 계좌 대사를 돕는다.
+     * 만일 payload (거래 내용)을 읽지 못해도 어느 계좌의 메시지인지 알 수 있도록 Header에 계좌 ID를 포함시키기 위한 wrapper 메서드
+     * Asset은 이 ID로 해당 계좌의 잔액과 거래내역을 다시 확인(재조회)하고, 나머지 ID와 이벤트 종류는 실패한 메시지를 추적하는 데 사용한다.
      */
     private fun BankingOutboxEvent.toProducerRecord(): ProducerRecord<String, ByteArray> =
         ProducerRecord(

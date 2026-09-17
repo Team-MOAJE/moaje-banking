@@ -47,6 +47,7 @@ class AccountProjectionSnapshotQueryServiceTest {
                         amount = 2_000L,
                         counterpartyAccountNumber = "counterparty-must-not-escape",
                         counterpartyBankCode = "088",
+                        merchantName = "스타벅스 강남점",
                         memo = null,
                         createdAt = Instant.parse("2026-01-01T00:00:30Z"),
                         completedAtEpochMillis = Instant.parse("2026-01-01T00:00:32Z").toEpochMilli(),
@@ -66,5 +67,6 @@ class AccountProjectionSnapshotQueryServiceTest {
         assertThat(result.transactions.single().externalTransactionId).isEqualTo("EXT-1")
         assertThat(result.transactions.single().occurredAt).isEqualTo(Instant.parse("2026-01-01T00:00:30Z"))
         assertThat(result.transactions.single().completedAt).isEqualTo(Instant.parse("2026-01-01T00:00:32Z"))
+        assertThat(result.transactions.single().merchantName).isEqualTo("스타벅스 강남점")
     }
 }

@@ -32,7 +32,7 @@ class TransferController(
         return transferCommandService.request(request.toCommand(principal.toPrincipalId(), idempotencyKey.toIdempotencyKey()))
     }
 
-    // JWT객체(Principal)에서 principalId 객체 생성
+    // 인증된 사용자 객체(Principal) 에서 principalId 객체 생성
     private fun Principal?.toPrincipalId(): PrincipalId {
         return this?.name
             ?.takeIf { it.isNotBlank() }

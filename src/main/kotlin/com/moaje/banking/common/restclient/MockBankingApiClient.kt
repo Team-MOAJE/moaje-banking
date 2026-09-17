@@ -222,9 +222,6 @@ class MockBankingApiClient(
     /**
      * Redis 캐시에서 토큰을 우선 사용하고, 없거나 만료되었으면 새로 발급받습니다.
      *
-     * Kotlin 포인트:
-     * - `copy(...)`는 data class의 일부 필드만 바꿔 새 객체를 만들 때 사용합니다.
-     * - `takeIf`와 비슷하게 조건을 만족할 때만 값을 이어가는 패턴을 자주 씁니다.
      */
     private fun getOrFetchToken(ci: String, userName: String, phoneNumber: String): ResponseToken {
         val redisKey = getTokenKey(ci)
@@ -375,8 +372,6 @@ class MockBankingApiClient(
     /**
      * 요청 본문에 대한 HMAC-SHA256 서명을 생성합니다.
      *
-     * Kotlin 포인트:
-     * - `joinToString("") { ... }`는 컬렉션/배열을 문자열로 접을 때 많이 쓰는 표준 함수입니다.
      */
     private fun sign(body: String): String {
         val mac = Mac.getInstance(HMAC_ALGORITHM)

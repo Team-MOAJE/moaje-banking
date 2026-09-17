@@ -24,6 +24,7 @@ data class ExternalProjectionTransactionResult(
     val currency: String,
     val occurredAt: Instant,
     val completedAt: Instant? = null,
+    val merchantName: String? = null,
 )
 
 @Service
@@ -62,6 +63,7 @@ class AccountProjectionSnapshotQueryService(
                     currency = "KRW",
                     occurredAt = history.createdAt,
                     completedAt = history.completedAtEpochMillis?.let(Instant::ofEpochMilli),
+                    merchantName = history.merchantName,
                 )
             },
         )

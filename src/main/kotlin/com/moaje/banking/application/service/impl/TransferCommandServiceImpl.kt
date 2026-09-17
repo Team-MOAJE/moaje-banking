@@ -41,22 +41,22 @@ class TransferCommandServiceImpl(
      * Banking이 목업뱅킹 결과를 확정한 뒤 Asset에는 projection 갱신 이벤트만 발행합니다.
      */
     override fun request(command: TransferCommand): TransferRequestResult {
-        val requestHash = TransferRequestHash.from(command)
-        val decision = getOrCreateTransfer(command, requestHash)
+        val requestHash = TransferRequestHash.from(command) // request 값 hashing
+        val decision = getOrCreateTransfer(command, requestHash) // 새로운 송금 트랜잭션 생성(이미 존재한다면 가져오기)
 
-        if (decision.existing) {
+        if (decision.existing) { // 이미 존재하는 트랜잭션이라면 return
             return decision.transfer.toResult()
         }
 
-        markProcessing(decision.transfer.transferId)
-        val bankingResult = mockBankingApiClient.transferRequest(
+        markProcessing(decision.transfer.transferId) // 새로운 송금 트랜잭션에 대해 processing 이라는 status를 남기는 짧은 TX
+        val bankingResult = mockBankingApiClient.transferRequest( // MockBanking 서버로 API 통신 시작
             transferId = decision.transfer.transferId,
             command = command,
             withdrawalProviderAccountId = checkNotNull(decision.withdrawalProviderAccountId),
         )
-        val savedTransfer = saveResult(decision.transfer.transferId, bankingResult)
+        val savedTransfer = saveResult(decision.transfer.transferId, bankingResult) // 완료된 통신결과를 가공
 
-        return TransferRequestResult(
+        return TransferRequestResult( // 송금 트랜잭션 완료 객체 반환
             transferId = savedTransfer.transferId,
             publicTransferId = savedTransfer.publicTransferId(),
             status = savedTransfer.status.toTransferStatus(),
@@ -78,17 +78,18 @@ class TransferCommandServiceImpl(
                 )
 
                 if (existing != null) {
-                    existing.requireSameRequest(requestHash)
+                    existing.requireSameRequest(requestHash) // 해싱을 통해 같은 거래인지 확인
                     return@execute TransferDecision(existing, existing = true) // 기존 거래내역 존재 시 바로 반환
                 }
 
                 /*
                  * 외부 호출 전에 Banking이 관리하는 내부 계좌로 소유권과 연결 상태를 검증한다.
-                 * 여기서 얻은 providerAccountId만 Adapter로 넘겨 실제 계좌번호가 Banking으로 역류하지 않게 한다.
                  */
                 val account = bankingAccountRepository.findById(command.withdrawalAccountId).orElseThrow {
                     BankingAccountNotFoundException(command.withdrawalAccountId)
                 }
+
+                // 출금계좌번호 별칭(mockup에서 제공해준 계좌번호 연동Id)
                 val withdrawalProviderAccountId = account.providerAccountIdForTransfer(command.principalId.value)
 
                 val transfer = BankingTransfer.create(
@@ -130,11 +131,11 @@ class TransferCommandServiceImpl(
         bankingResult: MockBankingTransferResult,
     ): BankingTransfer {
 
-        return transactionTemplate.execute {
+        return transactionTemplate.execute { // 짧은 트랜잭션에서 송금거래내역 저장 및 outbox 발급
             val transfer = bankingTransferRepository.findByIdForUpdate(transferId)
                 ?: throw IllegalStateException("송금 거래를 찾을 수 없습니다. transferId=$transferId")
 
-            when (bankingResult.status) {
+            when (bankingResult.status) { // 가져온 거래결과의 상태에 따라 다르게 구분하여 DB UPDATE
                 KftcApiLogStatus.SUCCESS -> transfer.markSucceeded(bankingResult.externalTransactionId)
                 KftcApiLogStatus.FAILED -> transfer.markFailed(bankingResult.responseCode, bankingResult.failureReason)
                 KftcApiLogStatus.TIMEOUT,

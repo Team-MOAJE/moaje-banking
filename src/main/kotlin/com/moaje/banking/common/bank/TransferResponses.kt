@@ -47,6 +47,7 @@ data class TransferHistoryResponse(
     val amount: Long,
     val counterpartyAccountNumber: String?,
     val counterpartyBankCode: String?,
+    val merchantName: String? = null,
     val memo: String?,
     val createdAt: Instant,
     val completedAtEpochMillis: Long? = null,

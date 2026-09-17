@@ -65,6 +65,7 @@ class TransferExceptionHandler {
     }
 }
 
+// 에러 응답 공통규격
 data class ApiErrorResponse(
     val code: String,
     val message: String,

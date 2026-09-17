@@ -1,5 +1,6 @@
 package com.moaje.banking.controller.account
 
+import java.security.Principal
 import com.moaje.banking.application.service.AccountOpeningService
 import com.moaje.banking.domain.account.OpenAccountCommand
 import com.moaje.banking.domain.account.OpenAccountResult
@@ -25,10 +26,11 @@ class AccountController(
     @ResponseStatus(HttpStatus.CREATED)
     fun openAccount(
         @Valid @RequestBody request: OpenAccountRequest,
-        principal: java.security.Principal,
+        principal: Principal,
     ): OpenAccountResult {
         return accountOpeningService.open(request.toCommand(principal.name))
     }
+
 }
 
 data class OpenAccountRequest(
