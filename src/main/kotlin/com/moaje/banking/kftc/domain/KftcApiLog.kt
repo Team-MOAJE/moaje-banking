@@ -44,7 +44,7 @@ class KftcApiLog(
     var responseCode: String? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 32)
     var status: KftcApiLogStatus = KftcApiLogStatus.SENT,
 
     @CreationTimestamp

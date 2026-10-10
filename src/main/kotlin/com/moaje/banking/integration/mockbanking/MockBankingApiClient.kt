@@ -2,6 +2,10 @@ package com.moaje.banking.integration.mockbanking
 
 import com.moaje.banking.integration.mockbanking.model.MockBankingTransferResult
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.moaje.banking.integration.mockbanking.model.MockTransferRejectionCode
+import com.moaje.banking.transfer.application.dto.MockBankingErrorResponse
 import com.moaje.banking.integration.mockbanking.model.MockBankingAccountResponse
 import com.moaje.banking.integration.mockbanking.model.MockBankingAccountSnapshotResponse
 import com.moaje.banking.integration.mockbanking.model.ResponseToken
@@ -307,25 +311,49 @@ class MockBankingApiClient(
                 responseCode = SUCCESS_RESPONSE_CODE,
                 externalTransactionId = transferResponse.debitHistory.transactionId,
             )
-        } catch (exception: ResourceAccessException) {
+        } catch (_: ResourceAccessException) {
+            // 연결 오류나 Timeout만으로는 계정계가 송금했는지 알 수 없다.
+            // 실패로 확정하지 않고 UNKNOWN으로 저장되어 대사받도록 한다.
             MockBankingTransferResult(
                 status = KftcApiLogStatus.TIMEOUT,
                 requestPayload = auditPayload,
                 responseCode = "TIMEOUT",
-                failureReason = exception.message ?: "목업 뱅킹 API 송금 요청 timeout이 발생했습니다.",
+                failureReason = "목업 뱅킹과 통신하지 못해 송금 결과를 확인할 수 없습니다.",
             )
         } catch (exception: RestClientResponseException) {
+            // HTTP 오류라도 이미 송금됐을 수 있으므로 약속된 거절 코드와 상태를 함께 검사한다.
+            // 오류 본문이 없거나 해석할 수 없으면 대사 대상으로 남기며 원문은 저장하지 않는다.
+            val errorResponse = try {
+                objectMapper.readerFor(MockBankingErrorResponse::class.java)
+                    .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                    .readValue<MockBankingErrorResponse>(exception.responseBodyAsByteArray)
+            } catch (_: JsonProcessingException) {
+                null
+            }
+            val confirmedRejection = errorResponse != null &&
+                MockTransferRejectionCode.matches(exception.statusCode.value(), errorResponse.code)
             MockBankingTransferResult(
-                status = KftcApiLogStatus.FAILED,
+                status = when {
+                    confirmedRejection -> KftcApiLogStatus.FAILED
+                    errorResponse == null -> KftcApiLogStatus.UNREADABLE_RESPONSE
+                    else -> KftcApiLogStatus.UNCONFIRMED_HTTP_ERROR
+                },
                 requestPayload = auditPayload,
                 responseCode = exception.statusCode.value().toString(),
-                failureReason = exception.responseBodyAsString.ifBlank { exception.message },
+                failureReason = if (confirmedRejection) {
+                    "목업 뱅킹이 송금을 명확히 거절했습니다. code=${errorResponse!!.code}"
+                } else {
+                    "목업 뱅킹의 HTTP 오류만으로 송금 결과를 확정할 수 없습니다. HTTP=${exception.statusCode.value()}"
+                },
             )
-        } catch (exception: RestClientException) {
+        } catch (_: RestClientException) {
+            // 응답을 객체로 바꾸지 못했어도 실제 송금은 완료됐을 수 있다.
+            // 응답 해석 실패를 금융 실패로 바꾸지 않고 대사로 확인한다.
             MockBankingTransferResult(
-                status = KftcApiLogStatus.FAILED,
+                status = KftcApiLogStatus.UNREADABLE_RESPONSE,
                 requestPayload = auditPayload,
-                failureReason = exception.message ?: "목업 뱅킹 API 송금 요청에 실패했습니다.",
+                responseCode = null,
+                failureReason = "목업 뱅킹 응답을 해석하지 못해 송금 결과를 확인할 수 없습니다.",
             )
         }
     }

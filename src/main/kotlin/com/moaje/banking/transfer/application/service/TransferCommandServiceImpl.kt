@@ -133,10 +133,14 @@ class TransferCommandServiceImpl(
             val transfer = bankingTransferRepository.findByIdForUpdate(transferId)
                 ?: throw IllegalStateException("송금 거래를 찾을 수 없습니다. transferId=$transferId")
 
+            // 응답을 읽지 못한 경우와 미확정 HTTP 오류도 실제 송금 여부는 알 수 없다.
+            // UNKNOWN으로 남겨 대사 대상에서 빠지지 않게 하고 확정 이벤트는 만들지 않는다.
             when (bankingResult.status) { // 가져온 거래결과의 상태에 따라 다르게 구분하여 DB UPDATE
                 KftcApiLogStatus.SUCCESS -> transfer.markSucceeded(bankingResult.externalTransactionId)
                 KftcApiLogStatus.FAILED -> transfer.markFailed(bankingResult.responseCode, bankingResult.failureReason)
                 KftcApiLogStatus.TIMEOUT,
+                KftcApiLogStatus.UNREADABLE_RESPONSE,
+                KftcApiLogStatus.UNCONFIRMED_HTTP_ERROR,
                 KftcApiLogStatus.SENT,
                     -> transfer.markUnknown(bankingResult.responseCode, bankingResult.failureReason)
 
@@ -235,7 +239,8 @@ class TransferCommandServiceImpl(
             KftcApiLogStatus.SUCCESS, KftcApiLogStatus.FAILED, KftcApiLogStatus.REVERSED
                 -> true
 
-            KftcApiLogStatus.TIMEOUT, KftcApiLogStatus.SENT
+            KftcApiLogStatus.TIMEOUT, KftcApiLogStatus.SENT,
+            KftcApiLogStatus.UNREADABLE_RESPONSE, KftcApiLogStatus.UNCONFIRMED_HTTP_ERROR
                 -> false
         }
 }

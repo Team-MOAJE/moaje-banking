@@ -29,6 +29,8 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -249,13 +251,14 @@ class TransferCommandServiceIdempotencyTest(
             .isInstanceOf(com.moaje.banking.transfer.support.InvalidTransferStateTransitionException::class.java)
     }
 
-    @Test
-    @DisplayName("Timeout은 즉시 FAILED로 확정하지 않고 UNKNOWN과 대사 필요 상태로 기록된다")
-    fun timeoutIsStoredAsUnknownAndReconciliationRequired() {
+    @ParameterizedTest
+    @EnumSource(value = KftcApiLogStatus::class, names = ["TIMEOUT", "UNREADABLE_RESPONSE", "UNCONFIRMED_HTTP_ERROR"])
+    @DisplayName("불명확한 결과는 UNKNOWN과 대사 필요 상태로 기록하고 Outbox를 만들지 않는다")
+    fun timeoutIsStoredAsUnknownAndReconciliationRequired(status: KftcApiLogStatus) {
         // given
         val command = command()
         val bankingResult = MockBankingTransferResult(
-            status = KftcApiLogStatus.TIMEOUT,
+            status = status,
             requestPayload = "{}",
             responseCode = "TIMEOUT",
             failureReason = "timeout",

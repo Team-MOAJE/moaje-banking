@@ -52,6 +52,8 @@ class BankingTransferEventPublisher(
             KftcApiLogStatus.FAILED -> publishFailed(bankingResult, transferId, assetTransactionId, command)
             KftcApiLogStatus.REVERSED -> publishReversed(bankingResult, transferId, command)
             KftcApiLogStatus.TIMEOUT,
+            KftcApiLogStatus.UNREADABLE_RESPONSE,
+            KftcApiLogStatus.UNCONFIRMED_HTTP_ERROR,
             KftcApiLogStatus.SENT,
             -> Unit
         }

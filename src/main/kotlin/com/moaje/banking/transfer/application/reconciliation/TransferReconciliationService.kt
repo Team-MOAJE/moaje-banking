@@ -84,6 +84,8 @@ class TransferReconciliationService(
                     }
                 }
                 KftcApiLogStatus.TIMEOUT,
+                KftcApiLogStatus.UNREADABLE_RESPONSE,
+                KftcApiLogStatus.UNCONFIRMED_HTTP_ERROR,
                 KftcApiLogStatus.SENT,
                 -> {
                     val retryExhausted = recordLookupFailure(transferId, lookupResult.responseCode, lookupResult.failureReason)
