@@ -15,9 +15,12 @@ import java.security.Principal
  */
 @Component
 class GatewayPrincipalFilter : OncePerRequestFilter() {
+
+    // 사용자의 인증이 필요한 구간 이외의 API는 해당 Filter 에서 통과
     override fun shouldNotFilter(request: HttpServletRequest): Boolean =
         !request.requestURI.startsWith("/api/v1/banking/") && request.requestURI != "/api/v1/banking"
 
+    // HttpServletRequest
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
         val values = request.getHeaders(USER_HEADER).toList()
         val subject = values.singleOrNull()

@@ -13,7 +13,7 @@ class GatewayPrincipalFilterTest {
     fun accountOpeningIgnoresBodyOwner() {
         // given: 개인정보 필드는 실제 개인정보가 아닌 실행마다 만든 테스트 문자열이다.
         val fixture = java.util.UUID.randomUUID().toString()
-        val request = com.moaje.banking.controller.account.OpenAccountRequest(
+        val request = com.moaje.banking.account.web.OpenAccountRequest(
             userId = "untrusted", ci = fixture, userName = fixture, phoneNumber = fixture,
             bankCode = "TEST", productName = "test-product", initialBalance = 0,
         )
