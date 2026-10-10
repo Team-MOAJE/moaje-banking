@@ -1,6 +1,5 @@
 package com.moaje.banking.common.auth
 
-import com.moaje.banking.transfer.domain.PrincipalId
 import com.moaje.banking.transfer.support.UnauthenticatedPrincipalException
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.core.MethodParameter
@@ -14,10 +13,10 @@ import org.springframework.web.method.support.ModelAndViewContainer
 @Component
 class AuthUserIdArgumentResolver : HandlerMethodArgumentResolver {
 
-    // 어떤 파라미터에 이 resolver를 적용할 것인가
-    // AuthUserId 어노테이션이 붙어있는 파라미터에 적용
+    // @AuthUserId가 붙은 문자열 파라미터에만 인증 사용자 ID를 전달한다.
     override fun supportsParameter(parameter: MethodParameter): Boolean {
-        return parameter.hasParameterAnnotation(AuthUserId::class.java)
+        return parameter.hasParameterAnnotation(AuthUserId::class.java) &&
+            parameter.parameterType == String::class.java
     }
 
     // 실제 파라미터에 바인딩 할 값을 생성해서 반환하도록함
@@ -40,7 +39,9 @@ class AuthUserIdArgumentResolver : HandlerMethodArgumentResolver {
             return null
         }
 
-        return PrincipalId(principal.name)
+        // MVC에는 문자열을 전달하고, 업무용 PrincipalId 변환은 Controller에서 한다.
+        // value class를 MVC 메서드 인자로 직접 전달할 때 발생했던 타입 충돌을 피한다.
+        return principal.name
     }
 
 }

@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.math.BigDecimal
-import java.security.Principal
 
 @RestController
 @RequestMapping("/api/v1/banking/transfers")
@@ -25,10 +24,12 @@ class TransferController(
 ) {
     @PostMapping
     fun transfer(
-        @AuthUserId(required = true) principalId: PrincipalId,
+        @AuthUserId(required = true) userId: String,
         @RequestHeader(name = "Idempotency-Key", required = false) idempotencyKey: String?,
         @Valid @RequestBody request: TransferRequest,
     ): TransferRequestResult {
+        // 인증 경계에서는 문자열로 받고, 업무 계층에는 전용 사용자 ID 타입을 전달한다.
+        val principalId = PrincipalId(userId)
         return transferCommandService.request(request.toCommand(principalId, idempotencyKey.toIdempotencyKey()))
     }
 
