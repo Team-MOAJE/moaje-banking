@@ -15,7 +15,7 @@ class GatewayPrincipalFilterTest {
         val fixture = java.util.UUID.randomUUID().toString()
         val request = com.moaje.banking.account.web.OpenAccountRequest(
             userId = "untrusted", ci = fixture, userName = fixture, phoneNumber = fixture,
-            bankCode = "TEST", productName = "test-product", initialBalance = 0,
+            bankCode = "TEST", bankName = "테스트 은행", productName = "test-product", initialBalance = 0,
         )
         // when
         val command = request.toCommand("123456789")

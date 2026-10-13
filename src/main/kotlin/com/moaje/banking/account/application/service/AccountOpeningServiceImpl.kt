@@ -35,6 +35,7 @@ class AccountOpeningServiceImpl(
                         providerAccountId = providerAccount.providerAccountId,
                         bankCode = providerAccount.bankCode,
                         productName = providerAccount.productName,
+                        bankName = providerAccount.bankName,
                     ),
                 )
                 val result = linkedAccount.toResult(command, providerAccount)
@@ -61,6 +62,7 @@ class AccountOpeningServiceImpl(
             accountId = accountId ?: error("Banking accountId가 없습니다."),
             userId = principalId,
             bankCode = bankCode,
+            bankName = bankName,
             productName = productName,
             balance = providerAccount.balance,
             status = providerAccount.status,

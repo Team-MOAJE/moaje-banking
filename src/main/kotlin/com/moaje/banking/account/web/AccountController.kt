@@ -7,6 +7,7 @@ import com.moaje.banking.account.application.model.OpenAccountResult
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -44,7 +45,11 @@ data class OpenAccountRequest(
     @field:NotBlank
     val phoneNumber: String,
     @field:NotBlank
+    @field:Size(max = 20)
     val bankCode: String,
+    @field:NotBlank
+    @field:Size(max = 100)
+    val bankName: String,
     @field:NotBlank
     val productName: String,
     @field:Min(0)
@@ -56,7 +61,8 @@ data class OpenAccountRequest(
             ci = ci,
             userName = userName,
             phoneNumber = phoneNumber,
-            bankCode = bankCode,
+            bankCode = bankCode.trim(),
+            bankName = bankName.trim(),
             productName = productName,
             initialBalance = initialBalance,
         )

@@ -11,6 +11,8 @@ data class AccountProjectionSnapshotResult(
     val accountStatus: String,
     val asOf: Instant,
     val transactions: List<ExternalProjectionTransactionResult>,
+    val bankCode: String? = null,
+    val bankName: String? = null,
 )
 
 data class ExternalProjectionTransactionResult(

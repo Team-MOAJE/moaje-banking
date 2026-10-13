@@ -11,6 +11,7 @@ data class MockBankingAccountResponse(
     val status: String,
     val createdAt: Instant,
     val canceledAt: Instant?,
+    val bankName: String? = null,
 )
 
 data class MockBankingAccountSnapshotResponse(
@@ -19,4 +20,6 @@ data class MockBankingAccountSnapshotResponse(
     val status: String,
     val asOf: Instant,
     val histories: List<TransferHistoryResponse>,
+    val bankCode: String? = null,
+    val bankName: String? = null,
 )

@@ -54,6 +54,10 @@ class AccountOpeningServiceOutboxJpaTest(
         val event = AccountCreatedEvent.parseFrom(outboxRepository.findAll().single().payload)
         assertThat(event.accountId).isEqualTo(first.accountId)
         assertThat(event.userId).isEqualTo("user-1")
+        assertThat(event.bankCode).isEqualTo("088")
+        assertThat(event.bankName).isEqualTo("테스트 은행")
+        assertThat(first.bankName).isEqualTo("테스트 은행")
+        assertThat(accountRepository.findAll().single().bankName).isEqualTo("테스트 은행")
     }
 
     private fun command(userId: String) = OpenAccountCommand(
@@ -62,6 +66,7 @@ class AccountOpeningServiceOutboxJpaTest(
         userName = "테스트 사용자",
         phoneNumber = "01000000000",
         bankCode = "088",
+        bankName = "테스트 은행",
         productName = "모아제 통장",
         initialBalance = 10_000L,
     )
@@ -69,6 +74,7 @@ class AccountOpeningServiceOutboxJpaTest(
     private fun providerAccount() = MockBankingAccountResponse(
         providerAccountId = "provider-opaque-1",
         accountNumber = "test-only-account-number",
+        bankName = "테스트 은행",
         bankCode = "088",
         productName = "모아제 통장",
         balance = 10_000L,

@@ -64,9 +64,35 @@ class AccountProjectionSnapshotQueryServiceTest {
         assertThat(result.accountId).isEqualTo(101L)
         assertThat(result.principalId).isEqualTo("user-1")
         assertThat(result.balance).isEqualByComparingTo("12000")
+        assertThat(result.bankCode).isEqualTo("088")
+        assertThat(result.bankName).isNull()
         assertThat(result.transactions.single().externalTransactionId).isEqualTo("EXT-1")
         assertThat(result.transactions.single().occurredAt).isEqualTo(Instant.parse("2026-01-01T00:00:30Z"))
         assertThat(result.transactions.single().completedAt).isEqualTo(Instant.parse("2026-01-01T00:00:32Z"))
         assertThat(result.transactions.single().merchantName).isEqualTo("스타벅스 강남점")
+    }
+
+    @Test
+    @DisplayName("스냅샷의 은행 정보를 전달하고 구버전 응답은 Banking 저장값으로 보충한다")
+    fun bankInformationUsesSnapshotThenStoredFallback() {
+        // given
+        val account = BankingAccount(
+            accountId = 102L, principalId = "user-1", providerAccountId = "provider-2",
+            bankCode = "088", bankName = "저장된 은행", productName = "test-product",
+        )
+        `when`(accountRepository.findById(102L)).thenReturn(Optional.of(account))
+        val snapshot = MockBankingAccountSnapshotResponse(
+            "provider-2", 0, "ACTIVE", Instant.EPOCH, emptyList(), "004", "스냅샷 은행",
+        )
+        `when`(mockBankingApiClient.fetchAccountSnapshot("provider-2", Instant.EPOCH))
+            .thenReturn(snapshot, snapshot.copy(bankCode = null, bankName = null))
+        // when
+        val current = service.getSnapshot(102L, Instant.EPOCH)
+        val legacy = service.getSnapshot(102L, Instant.EPOCH)
+        // then
+        assertThat(current.bankCode).isEqualTo("004")
+        assertThat(current.bankName).isEqualTo("스냅샷 은행")
+        assertThat(legacy.bankCode).isEqualTo("088")
+        assertThat(legacy.bankName).isEqualTo("저장된 은행")
     }
 }

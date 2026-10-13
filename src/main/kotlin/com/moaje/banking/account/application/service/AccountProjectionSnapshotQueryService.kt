@@ -32,6 +32,8 @@ class AccountProjectionSnapshotQueryService(
         // 계좌번호와 상대 계좌번호는 Asset Projection에 필요하지 않으므로 gRPC 경계 밖으로 내보내지 않는다.
         return AccountProjectionSnapshotResult(
             accountId = accountId,
+            bankCode = snapshot.bankCode?.takeIf(String::isNotBlank) ?: account.bankCode,
+            bankName = snapshot.bankName?.takeIf(String::isNotBlank) ?: account.bankName,
             principalId = account.principalId,
             balance = BigDecimal.valueOf(snapshot.balance),
             currency = "KRW",
