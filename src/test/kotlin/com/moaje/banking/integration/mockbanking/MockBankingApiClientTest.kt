@@ -39,6 +39,30 @@ class MockBankingApiClientTest(
     private lateinit var redisTemplate: StringRedisTemplate
 
     @Test
+    @DisplayName("계좌 생성 HTTP 요청과 응답에서 은행 코드와 은행명을 유지한다")
+    fun accountOpeningPreservesBankInformation() {
+        // given: 토큰 발급 후 실제 Adapter가 만드는 HTTP 본문을 확인한다.
+        @Suppress("UNCHECKED_CAST")
+        val values = Mockito.mock(ValueOperations::class.java) as ValueOperations<String, String>
+        Mockito.`when`(redisTemplate.opsForValue()).thenReturn(values)
+        server.expect(requestTo("http://localhost:8081/oauth/2.0/token"))
+            .andRespond(withSuccess("""{"accessToken":"test-token","tokenType":"Bearer","expiresIn":3600}""", MediaType.APPLICATION_JSON))
+        server.expect(requestTo("http://localhost:8081/api/accounts"))
+            .andExpect(method(HttpMethod.POST))
+            .andExpect(content().json("""{"bankCode":"088","bankName":"테스트 은행","productName":"test-product","initialBalance":0}"""))
+            .andRespond(withSuccess("""{"providerAccountId":"test-provider","accountNumber":"test-account","bankCode":"088","bankName":"테스트 은행","productName":"test-product","balance":0,"status":"ACTIVE","createdAt":"2026-01-01T00:00:00Z","canceledAt":null}""", MediaType.APPLICATION_JSON))
+        val command = com.moaje.banking.account.application.model.OpenAccountCommand(
+            "test-owner", "test-ci", "test-user", "test-phone", "088", "test-product", 0, "테스트 은행",
+        )
+        // when
+        val result = mockBankingApiClient.openAccount(command)
+        // then
+        assertThat(result.bankCode).isEqualTo("088")
+        assertThat(result.bankName).isEqualTo("테스트 은행")
+        server.verify()
+    }
+
+    @Test
     @DisplayName("fetches oauth token")
     fun getAuthTokenByMockBankingApiServer() {
         server.expect(requestTo("http://localhost:8081/oauth/2.0/token"))

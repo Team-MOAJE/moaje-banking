@@ -392,6 +392,7 @@ class MockBankingApiClient(
         return objectMapper.writeValueAsString(
             mapOf(
                 "bankCode" to command.bankCode,
+                "bankName" to command.bankName,
                 "productName" to command.productName,
                 "initialBalance" to command.initialBalance,
             ),

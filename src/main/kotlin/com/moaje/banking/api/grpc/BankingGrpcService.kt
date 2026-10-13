@@ -60,6 +60,8 @@ class BankingGrpcService(
                         .build(),
                 )
                 .setAccountStatus(snapshot.accountStatus)
+                .apply { snapshot.bankCode?.let { setBankCode(it) } }
+                .apply { snapshot.bankName?.let { setBankName(it) } }
                 .setAsOfEpochMillis(snapshot.asOf.toEpochMilli())
                 .addAllTransactions(snapshot.transactions.map { transaction ->
                     ExternalProjectionTransaction.newBuilder()

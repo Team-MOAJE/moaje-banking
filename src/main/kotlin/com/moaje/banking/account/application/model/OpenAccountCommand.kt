@@ -8,4 +8,5 @@ data class OpenAccountCommand(
     val bankCode: String,
     val productName: String,
     val initialBalance: Long,
+    val bankName: String,
 )

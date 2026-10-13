@@ -27,6 +27,7 @@ class BankingAccountEventPublisher(
             .setUserId(result.userId)
             .setAccountId(result.accountId)
             .setBankCode(result.bankCode)
+            .apply { result.bankName?.let { setBankName(it) } }
             .setProductName(result.productName)
             .setInitialBalance(result.balance)
             .setCreatedAt(result.createdAt.toString())

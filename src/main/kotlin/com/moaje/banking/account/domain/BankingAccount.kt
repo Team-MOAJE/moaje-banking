@@ -53,6 +53,10 @@ class BankingAccount(
     @Column(name = "product_name", nullable = false, length = 100)
     var productName: String,
 
+    // 기존 계좌의 은행명은 추측하지 않고 비워 둔다.
+    @Column(name = "bank_name", length = 100)
+    var bankName: String? = null,
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     var createdAt: LocalDateTime = LocalDateTime.now(),
