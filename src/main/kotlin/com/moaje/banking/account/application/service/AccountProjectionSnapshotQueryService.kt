@@ -34,6 +34,7 @@ class AccountProjectionSnapshotQueryService(
             accountId = accountId,
             bankCode = snapshot.bankCode?.takeIf(String::isNotBlank) ?: account.bankCode,
             bankName = snapshot.bankName?.takeIf(String::isNotBlank) ?: account.bankName,
+            maskedAccountNumber = snapshot.maskedAccountNumber,
             principalId = account.principalId,
             balance = BigDecimal.valueOf(snapshot.balance),
             currency = "KRW",

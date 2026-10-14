@@ -68,6 +68,7 @@ class AccountOpeningServiceImpl(
             status = providerAccount.status,
             createdAt = providerAccount.createdAt,
             canceledAt = providerAccount.canceledAt,
+            accountNumber = providerAccount.accountNumber,
         )
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.math.BigDecimal
+import io.swagger.v3.oas.annotations.media.Schema
 
 @RestController
 @RequestMapping("/api/v1/banking/transfers")
@@ -40,6 +41,8 @@ class TransferController(
 }
 
 data class TransferRequest(
+    // 계좌번호는 표시·수취용이다. 출금은 JWT 소유권을 검증할 수 있는 내부 accountId로만 요청한다.
+    @field:Schema(type = "string", description = "계좌 목록의 본인 accountId. accountNumber를 넣지 않는다.", example = "123456789012345678")
     @field:Positive
     val withdrawalAccountId: Long,
     @field:NotBlank

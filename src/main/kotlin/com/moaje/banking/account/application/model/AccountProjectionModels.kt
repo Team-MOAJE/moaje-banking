@@ -13,6 +13,7 @@ data class AccountProjectionSnapshotResult(
     val transactions: List<ExternalProjectionTransactionResult>,
     val bankCode: String? = null,
     val bankName: String? = null,
+    val maskedAccountNumber: String? = null,
 )
 
 data class ExternalProjectionTransactionResult(

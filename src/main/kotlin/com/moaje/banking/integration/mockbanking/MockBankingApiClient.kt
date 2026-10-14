@@ -123,6 +123,18 @@ class MockBankingApiClient(
             ?: throw IllegalStateException("목업 뱅킹 API 계좌 Snapshot 응답이 비어 있습니다.")
     }
 
+    fun fetchProviderAccount(providerAccountId: String): MockBankingAccountResponse {
+        val token = getOrFetchToken(properties.transferAuthCi, properties.transferAuthUserName, properties.transferAuthPhoneNumber)
+        return restClient.get()
+            .uri("api/accounts/providers/{providerAccountId}", providerAccountId)
+            .headers {
+                it.setBearerAuth(token.accessToken)
+                it.set(MOCK_SIGNATURE_HEADER, sign(EMPTY_BODY))
+            }
+            .retrieve().body<MockBankingAccountResponse>()
+            ?: throw IllegalStateException("계정계 계좌 응답이 없습니다.")
+    }
+
     fun lookupTransferResult(transferId: Long): MockBankingTransferResult {
         val token = getOrFetchToken(
             properties.transferAuthCi,

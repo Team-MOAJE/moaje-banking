@@ -22,4 +22,5 @@ data class MockBankingAccountSnapshotResponse(
     val histories: List<TransferHistoryResponse>,
     val bankCode: String? = null,
     val bankName: String? = null,
+    val maskedAccountNumber: String? = null,
 )

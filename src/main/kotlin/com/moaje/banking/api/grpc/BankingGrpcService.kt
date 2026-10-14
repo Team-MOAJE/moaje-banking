@@ -1,6 +1,9 @@
 package com.moaje.banking.api.grpc
 
 import com.moaje.banking.account.application.service.AccountProjectionSnapshotQueryService
+import com.moaje.banking.account.application.service.AccountNumberQueryService
+import com.moaje.grpc.banking.GetOwnedAccountNumberRequest
+import com.moaje.grpc.banking.GetOwnedAccountNumberResponse
 import com.moaje.banking.transfer.application.service.TransferProjectionQueryService
 import com.moaje.banking.transfer.application.model.TransferProjectionStateResult
 import com.moaje.common.Money as ProtoMoney
@@ -20,7 +23,15 @@ import java.time.Instant
 class BankingGrpcService(
     private val transferProjectionQueryService: TransferProjectionQueryService,
     private val accountProjectionSnapshotQueryService: AccountProjectionSnapshotQueryService,
+    private val accountNumberQueryService: AccountNumberQueryService,
 ) : BankingServiceGrpc.BankingServiceImplBase() {
+    override fun getOwnedAccountNumber(request: GetOwnedAccountNumberRequest, responseObserver: StreamObserver<GetOwnedAccountNumberResponse>) {
+        runCatching {
+            GetOwnedAccountNumberResponse.newBuilder()
+                .setAccountNumber(accountNumberQueryService.getOwnedAccountNumber(request.accountId, request.principalId))
+                .build()
+        }.respond(responseObserver)
+    }
     /**
      * Asset 자동 대사는 평문 계좌정보를 전달하지 않고 내부 accountId와 transferId만으로 Journal을 조회한다.
      * 이 RPC는 외부 송금을 실행하지 않는 읽기 전용 Adapter이며, Projection 복구 판단은 Asset Application 계층이 담당한다.
@@ -62,6 +73,7 @@ class BankingGrpcService(
                 .setAccountStatus(snapshot.accountStatus)
                 .apply { snapshot.bankCode?.let { setBankCode(it) } }
                 .apply { snapshot.bankName?.let { setBankName(it) } }
+                .apply { snapshot.maskedAccountNumber?.let { setMaskedAccountNumber(it) } }
                 .setAsOfEpochMillis(snapshot.asOf.toEpochMilli())
                 .addAllTransactions(snapshot.transactions.map { transaction ->
                     ExternalProjectionTransaction.newBuilder()
@@ -87,7 +99,11 @@ class BankingGrpcService(
             responseObserver.onNext(response)
             responseObserver.onCompleted()
         }.onFailure { exception ->
-            val status = if (exception is IllegalArgumentException) Status.INVALID_ARGUMENT else Status.INTERNAL
+            val status = when (exception) {
+                is SecurityException -> Status.PERMISSION_DENIED
+                is IllegalArgumentException -> Status.INVALID_ARGUMENT
+                else -> Status.INTERNAL
+            }
             responseObserver.onError(status.withDescription(exception.message).withCause(exception).asRuntimeException())
         }
     }

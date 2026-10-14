@@ -18,7 +18,7 @@ class ResponseIdentifierSerializationTest {
     @DisplayName("계좌와 송금 응답의 ID는 문자열이며 금액은 숫자이다")
     fun responseIdentifiersAreStrings() {
         // given: JavaScript Number가 정확히 표현할 수 없는 큰 정수이다.
-        val account = OpenAccountResult(id, "owner", "088", "test", 1000, "ACTIVE", Instant.EPOCH, null)
+        val account = OpenAccountResult(id, "owner", "088", "test", 1000, "ACTIVE", Instant.EPOCH, null, accountNumber = "12345678901234")
         val transfer = TransferRequestResult(id, "public-id", TransferStatus.COMPLETED, "완료")
         // when
         val accountJson = mapper.readTree(mapper.writeValueAsString(account))
@@ -27,6 +27,8 @@ class ResponseIdentifierSerializationTest {
         assertThat(accountJson["accountId"].isTextual).isTrue()
         assertThat(accountJson["accountId"].asText()).isEqualTo(id.toString())
         assertThat(accountJson["balance"].isNumber).isTrue()
+        assertThat(accountJson["accountNumber"].asText()).isEqualTo("12345678901234")
+        assertThat(accountJson["maskedAccountNumber"].asText()).isEqualTo("**********1234")
         assertThat(transferJson["transferId"].isTextual).isTrue()
         assertThat(transferJson["transferId"].asText()).isEqualTo(id.toString())
     }

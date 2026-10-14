@@ -21,6 +21,40 @@ class TransferControllerIdempotencyTest {
     private val objectMapper = ObjectMapper().findAndRegisterModules()
 
     @Test
+    @DisplayName("출금 계좌번호만 보내고 withdrawalAccountId를 생략하면 400으로 거절한다")
+    fun rejectsAccountNumberInsteadOfWithdrawalAccountId() {
+        // given: 표시용 계좌번호를 업무용 ID 대신 보내는 잘못된 요청이다.
+        val service = CapturingTransferCommandService()
+        val body = objectMapper.readTree(transferBody("user-1")) as com.fasterxml.jackson.databind.node.ObjectNode
+        body.remove("withdrawalAccountId")
+        body.put("withdrawalAccountNumber", "12345678901234")
+        // when
+        val response = mockMvc(service).perform(post("/api/v1/banking/transfers")
+            .principal(Principal { "user-1" }).header("Idempotency-Key", "account-id-required")
+            .contentType(MediaType.APPLICATION_JSON).content(body.toString())).andReturn().response
+        // then: 계좌번호로 우회 조회하거나 송금을 실행하지 않는다.
+        assertThat(response.status).isEqualTo(400)
+        assertThat(service.capturedCommand).isNull()
+    }
+
+    @Test
+    @DisplayName("문자열 withdrawalAccountId로 요청하면 계좌번호가 아니라 그 ID를 업무 계층에 전달한다")
+    fun forwardsStringWithdrawalAccountId() {
+        // given
+        val service = CapturingTransferCommandService()
+        val body = objectMapper.readTree(transferBody("user-1")) as com.fasterxml.jackson.databind.node.ObjectNode
+        body.put("withdrawalAccountId", "123456789012345679")
+        body.put("withdrawalAccountNumber", "ignored-display-number")
+        // when
+        val response = mockMvc(service).perform(post("/api/v1/banking/transfers")
+            .principal(Principal { "user-1" }).header("Idempotency-Key", "string-account-id")
+            .contentType(MediaType.APPLICATION_JSON).content(body.toString())).andReturn().response
+        // then
+        assertThat(response.status).isEqualTo(200)
+        assertThat(service.capturedCommand?.withdrawalAccountId).isEqualTo(123456789012345679L)
+    }
+
+    @Test
     @DisplayName("Idempotency-Key 누락 시 4xx가 반환되고 거래가 생성되지 않는다")
     fun missingIdempotencyKeyReturns4xxAndDoesNotCallApplicationService() {
         // given

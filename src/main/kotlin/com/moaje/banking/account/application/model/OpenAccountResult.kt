@@ -18,4 +18,12 @@ data class OpenAccountResult(
     val createdAt: Instant,
     val canceledAt: Instant?,
     val bankName: String? = null,
-)
+    @get:Schema(description = "개설된 실제 계좌번호. 표시·수취용이며 본인 계좌 조회·출금에는 accountId를 사용한다.")
+    val accountNumber: String,
+) {
+    // Kafka에는 원번호 대신 끝 네 자리만 남긴 표시값을 보낸다.
+    // 짧은 값도 전체가 노출되지 않도록 네 자리 이하는 전부 가린다.
+    val maskedAccountNumber: String
+        get() = if (accountNumber.length <= 4) "*".repeat(accountNumber.length)
+        else "*".repeat(accountNumber.length - 4) + accountNumber.takeLast(4)
+}

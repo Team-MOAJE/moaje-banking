@@ -40,6 +40,7 @@ class BankingGrpcServer(
         if (running) return
 
         val builder = NettyServerBuilder.forPort(properties.port)
+            .intercept(OwnedAccountNumberInterceptor())
         if (properties.tls.enabled) {
             val tls = properties.tls
             val certificateChain = tls.certificateChainPath.requireReadableFile("Banking server certificate chain")

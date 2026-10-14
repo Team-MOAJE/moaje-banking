@@ -57,6 +57,11 @@ class AccountOpeningServiceOutboxJpaTest(
         assertThat(event.bankCode).isEqualTo("088")
         assertThat(event.bankName).isEqualTo("테스트 은행")
         assertThat(first.bankName).isEqualTo("테스트 은행")
+        assertThat(first.accountNumber).isEqualTo(providerAccount().accountNumber)
+        assertThat(second.accountNumber).isEqualTo(first.accountNumber)
+        assertThat(event.maskedAccountNumber).isEqualTo("**********1234")
+        // 실제 Outbox 바이트에 원번호가 들어가지 않았는지 확인한다.
+        assertThat(String(event.toByteArray(), Charsets.ISO_8859_1)).doesNotContain(first.accountNumber)
         assertThat(accountRepository.findAll().single().bankName).isEqualTo("테스트 은행")
     }
 
@@ -73,7 +78,7 @@ class AccountOpeningServiceOutboxJpaTest(
 
     private fun providerAccount() = MockBankingAccountResponse(
         providerAccountId = "provider-opaque-1",
-        accountNumber = "test-only-account-number",
+        accountNumber = "12345678901234", // 모의 응답 전용 가상 계좌번호
         bankName = "테스트 은행",
         bankCode = "088",
         productName = "모아제 통장",

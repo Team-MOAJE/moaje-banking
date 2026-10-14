@@ -27,6 +27,8 @@ class BankingAccountEventPublisher(
             .setUserId(result.userId)
             .setAccountId(result.accountId)
             .setBankCode(result.bankCode)
+            // 전체 계좌번호는 개설 HTTP 응답에만 제공하고 Kafka에는 넣지 않는다.
+            .setMaskedAccountNumber(result.maskedAccountNumber)
             .apply { result.bankName?.let { setBankName(it) } }
             .setProductName(result.productName)
             .setInitialBalance(result.balance)

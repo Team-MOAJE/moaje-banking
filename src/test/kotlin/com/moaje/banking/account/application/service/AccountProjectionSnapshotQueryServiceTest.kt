@@ -82,7 +82,7 @@ class AccountProjectionSnapshotQueryServiceTest {
         )
         `when`(accountRepository.findById(102L)).thenReturn(Optional.of(account))
         val snapshot = MockBankingAccountSnapshotResponse(
-            "provider-2", 0, "ACTIVE", Instant.EPOCH, emptyList(), "004", "스냅샷 은행",
+            "provider-2", 0, "ACTIVE", Instant.EPOCH, emptyList(), "004", "스냅샷 은행", "**********1234",
         )
         `when`(mockBankingApiClient.fetchAccountSnapshot("provider-2", Instant.EPOCH))
             .thenReturn(snapshot, snapshot.copy(bankCode = null, bankName = null))
@@ -92,6 +92,7 @@ class AccountProjectionSnapshotQueryServiceTest {
         // then
         assertThat(current.bankCode).isEqualTo("004")
         assertThat(current.bankName).isEqualTo("스냅샷 은행")
+        assertThat(current.maskedAccountNumber).isEqualTo("**********1234")
         assertThat(legacy.bankCode).isEqualTo("088")
         assertThat(legacy.bankName).isEqualTo("저장된 은행")
     }
